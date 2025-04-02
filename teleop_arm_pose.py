@@ -27,18 +27,19 @@ class DisplacementPublisher(Node):
 
   def publish_displacement(self, displacement):
       msg = Float32MultiArray()
-      msg.data = displacement.tolist()
+      msg.data = displacement
       self.publisher.publish(msg)
       self.get_logger().info(f'Published displacement: {displacement}')
   def publish_finger(self, left_finger):
+      left_finger = [round(d, 2) for d in left_finger]
       msg = Float32MultiArray()
-      msg.data = left_finger.tolist()
+      msg.data = left_finger
       self.publisher2.publish(msg)
       self.get_logger().info(f'Published left finger data: {left_finger}')
 
 
 class USBCameraSystem:
-    def __init__(self, camera_id=0, resolution=(720, 1280)):
+    def __init__(self, camera_id=2, resolution=(720, 1280)):
         self.resolution = resolution
         self.cam = cv2.VideoCapture(camera_id)
 
@@ -108,39 +109,28 @@ class Sim:
         self.publisher = DisplacementPublisher()
         self.print_freq = print_freq
         self.target_pose = np.array([-0.4, 0.08, 1.1]) 
-        self.threshold = 0.05
+        self.threshold = 0.1
         self.camera_system = USBCameraSystem()
         self.active_position = None
         self.active_orientation = None
         self.status = "Inactive"
         self.displacement = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
         self.left_finger = np.zeros(12)
-        self.previous_pose = np.array([-0.35, 0.08, 1.1])
+        self.previous_pose = np.array([-0.45, 0.17, 1.17])
         #new
         #self.gripper_threshold = 0.5
 
-    '''def check_gripper_status(self, left_qpos):
-        left_finger_open = np.mean(left_qpos) > self.gripper_threshold  # 举例判断左手是否张开
-        return left_finger_open'''
 
     def step(self, head_rmat, left_pose, right_pose, left_qpos, left_finger):
         if self.print_freq:
             start = time.time()
         #print("left_pose",left_pose)
         # 使用字符串格式化来打印
-        print("Formatted left_qpos:", ", ".join([f"{q:.2f}" for q in left_qpos]))
+        #print("Formatted left_qpos:", ", ".join([f"{q:.2f}" for q in left_qpos]))
         #print("left_finger:", self.left_finger)
 
         left_position = np.array(left_pose[:3])
         left_orientation = np.array(left_pose[3:6])
-
-        '''left_finger_open = self.check_gripper_status(left_qpos)
-        if left_finger_open:
-            print("Left hand fingers are open.")
-            self.publisher.publish_displacement(self.left_finger)
-        else:
-            print("Left hand fingers are closed.")
-            self.publisher.publish_displacement(self.left_finger)'''
         
         if self.status == "Inactive":
             if np.all(np.abs(left_position - self.target_pose) <= self.threshold):
@@ -155,17 +145,22 @@ class Sim:
                 left_orientation = np.array([left_orientation[1], left_orientation[0], left_orientation[2]])
                 displacement_orien = left_orientation - self.active_orientation
                 self.displacement = np.concatenate(( displacement_posi, displacement_orien))
-                self.left_finger = np.mean(left_qpos)
+                self.left_finger = np.array(left_qpos)
+                #self.left_finger = np.mean(left_qpos)
                 #self.left_finger = left_qpos
-                print("left finger qpos",self.left_finger)
+                #print("left finger qpos",self.left_finger)
 
 
             else:
                 self.displacement = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+                
 
             self.previous_pose = left_position
-            self.publisher.publish_displacement(self.displacement)
-            self.publisher.publish_finger(self.left_finger)
+            #self.publisher.publish_displacement(self.displacement)
+            #self.publisher.publish_finger(self.left_finger)
+            self.publisher.publish_displacement(self.displacement.tolist())
+            self.publisher.publish_finger(self.left_finger.tolist())
+
 
 
 
