@@ -4,6 +4,7 @@ from std_msgs.msg import Float32MultiArray
 from argparse import ArgumentParser
 from frankx import *
 from time import sleep
+import numpy as np
 
 class DisplacementSubscriber(Node):
     def __init__(self, robot):
@@ -20,6 +21,7 @@ class DisplacementSubscriber(Node):
             '/finger',
             self.listener_callback_finger,
             10)
+        self.subscription
 
         self.robot = robot  
         self.delta_range = 0.05  
@@ -32,7 +34,7 @@ class DisplacementSubscriber(Node):
         robot.move(joint_motion)
 
         self.gripper = self.robot.get_gripper()
-
+        self.gripper.homing()#gripper init
         self.impedance_motion = ImpedanceMotion(200.0, 20.0) 
         self.robot_thread = self.robot.move_async(self.impedance_motion)
         sleep(0.1)
@@ -56,10 +58,16 @@ class DisplacementSubscriber(Node):
             self.get_logger().warn('Received displacement does not have exactly 3 values.')
 
     def finger_status_open(self):
-        if self.left_qpos < 1.0:#threshold
+        left_finger_position = np.mean(self.left_qpos)
+        print("finger position:", self.left_qpos)
+        if left_finger_position < 0.8:#threshold
             return True
         else:
             return False
+        #if left_finger_position < 1.0:#threshold
+        #    return True
+        #else:
+        #    return False
 
     def apply_relative_motion(self, delta_x, delta_y, delta_z, pitch, yaw):
         new_x = self.initial_position[0] + delta_x
